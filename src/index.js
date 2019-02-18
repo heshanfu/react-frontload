@@ -1,6 +1,14 @@
 import React from 'react'
 import PropTypes from 'prop-types'
 
+const autoDetectIsServer = () => (
+  typeof window === 'undefined' ||
+  !window.document ||
+  !window.document.createElement
+)
+
+const IS_SERVER = autoDetectIsServer()
+
 let FRONTLOAD_QUEUES = []
 
 const LIFECYCLE_PHASES = {
@@ -11,12 +19,6 @@ const LIFECYCLE_PHASES = {
 const log = (process.env.NODE_ENV !== 'production') && ((name, message) => {
   console.log(`[react-frontload]${name ? ` [${name}]` : ''} ${message}`)
 })
-
-const autoDetectIsServer = () => (
-  typeof window === 'undefined' ||
-  !window.document ||
-  !window.document.createElement
-)
 
 const cleanQueues = (index) => {
   if (index === undefined) {
@@ -43,7 +45,12 @@ const waitForAllToComplete = (promises) => (
 )
 
 function flushQueues (index, options = {}) {
-  if (index === undefined) return Promise.all(map(FRONTLOAD_QUEUES, (_, i) => flushQueues(i)))
+  if (index === undefined) {
+    const promises = Promise.all(map(FRONTLOAD_QUEUES, (_, i) => flushQueues(i)))
+    cleanQueues()
+
+    return promises
+  }
 
   const frontloadPromises = []
   const queue = FRONTLOAD_QUEUES[index]
@@ -127,9 +134,7 @@ export class Frontload extends React.Component {
   constructor (props, context) {
     super(props, context)
 
-    this.isServer = (props.isServer === undefined)
-      ? autoDetectIsServer()
-      : props.isServer
+    this.isServer = (props.isServer === undefined) ? IS_SERVER : props.isServer
 
     this.queueIndex = FRONTLOAD_QUEUES.push([]) - 1
 
@@ -193,44 +198,154 @@ export const frontloadConnect = (frontload, options = {}) => (component) => (pro
     options={options} />
 )
 
-export const frontloadServerRender = (render, withLogging) => {
+function frontloadServerRenderWorker (
+  render,
+  { withLogging, maxNestedFrontloadComponents },
+  renderNumber = 1,
+  frontloadsInLastRender = 0
+) {
   if (process.env.NODE_ENV !== 'production' && withLogging) {
-    log('frontloadServerRender info', 'running first render to fill frontload fn queue(s)')
+    log('frontloadServerRender info', `running render pass ${renderNumber}`)
   }
 
-  // a first render is required to fill the frontload queue(s) wth the frontload
-  // functions on the components in the subtrees under frontload containers that will be rendered
-  // The result of this first render is useless, and is thrown away, so there is more work than
-  // necessary done here. This could be improved, for example if a future version of react implements something like a
-  // rendering dry-run to walk the component tree without actually doing the render at the end
-  // the true flag here signals that this render is just a "dry-run"
+  // do a render pass
+  //
+  // if there are any 'frontloaded' Components then their frontload functions will be run and will fill the promise queue
+  //
+  // pass dry-run flag value true to indicate to the render function that this is a dry run of the server render, i.e. NOT the final render
   render(true)
 
+  // there is only ever one 'active' queue of frontloads on the server,
+  // as only one React render() call can happen at a time and the queues are cleared
+  // **synchronously** before any subsequent React render() happens
+  //
+  // IMPORTANT - notice that we MAY NOT depend on this queue being the same in any future Promise callback
+  // that breaks out of the synchronous flow
+  const frontloadsQueue = FRONTLOAD_QUEUES[0]
+
   if (process.env.NODE_ENV !== 'production' && withLogging) {
-    log('frontloadServerRender info', 'first render succeeded, frontend fn queue(s) filled')
-    log('frontloadServerRender info', 'flushing frontend fn queue(s) before running second render...')
+    log('frontloadServerRender info', `render pass ${renderNumber} - total frontloads count ${frontloadsQueue.length}`)
+  }
+
+  const totalFrontloadsInThisRender = frontloadsQueue.length + 0
+  const newFrontloadsInThisRender = totalFrontloadsInThisRender - frontloadsInLastRender
+
+  // if there are no NEW promises in the queue then we are done and need to render and return the final output
+  if (newFrontloadsInThisRender === 0) {
+    if (process.env.NODE_ENV !== 'production' && withLogging) {
+      log('frontloadServerRender info', `after running ${renderNumber} render passes (of max ${maxNestedFrontloadComponents} allowed) no frontload components remain to render, so running final render.`)
+    }
+
+    // clean the queues before the final server render
+    cleanQueues()
+
+    // pass the dry-run flag with value false to indicate to the render function that this IS the final render
+    const finalRenderOutput = render(false)
+
+    if (process.env.NODE_ENV !== 'production' && withLogging) {
+      log('frontloadServerRender info', 'NOTE: as the logs show, the queue(s) are filled by Frontload on final render, however they are NOT flushed, so the frontload functions DO NOT run unnecessarily on final render.')
+      log('frontloadServerRender info', 'final render succeeded. Server rendering is done.')
+    }
+
+    // clean the queues after the final server render
+    cleanQueues()
+
+    // the return value of this function has to be a Promise, so just wrap the result in an immediately resolved Promise
+    return Promise.resolve(finalRenderOutput)
   }
 
   const startFlushAt = withLogging && Date.now()
 
-  const rendered = flushQueues().then(() => {
+  // if there are promises in the queue, then flush it to run the frontloads, then do another pass
+  if (process.env.NODE_ENV !== 'production' && withLogging) {
+    log('frontloadServerRender info', `${newFrontloadsInThisRender} frontloads to run in render pass ${renderNumber}`)
+  }
+
+  return flushQueues().then(() => {
     if (process.env.NODE_ENV !== 'production' && withLogging) {
-      log('frontloadServerRender info', `flushed frontload fn queue(s) in ${Date.now() - startFlushAt}ms`)
-      log('frontloadServerRender info', 'Running second render.')
+      log(
+        'frontloadServerRender info',
+        `render pass ${renderNumber} - ran ${newFrontloadsInThisRender} frontloads in ${Date.now() - startFlushAt}ms`
+      )
     }
 
-    const output = render(false)
+    // if we have reached the maximum configured number of render passes
+    // i.e. the maximum allowed depth of nested frontloaded Components that can be server rendered
+    // then we must exit the recrusion at this point
+    // this means flushing those promises we have left, and then doing a final render
+    //
+    // If when doing the final render we detect more promises collected, i.e. more frontloads to run,
+    // give a really detailed WARNING message so the (likely) bug can be properly understood and fixed
+    if (renderNumber === maxNestedFrontloadComponents) {
+      // pass the dry-run flag with value false to indicate to the render function that this IS the final render
+      // note that queus were alrewady cleaned by the flushQueues() call
+      const incompleteRenderOutput = render(false)
 
-    // all queues get filled again on the second render. Just clean them, don't flush them
-    cleanQueues()
+      // there is only ever one 'active' queue of frontloads on the server,
+      // as only one React render() call can happen at a time and the queues are cleared
+      // **synchronously** before any subsequent React render() happens
+      //
+      // IMPORTANT - notice that we MAY NOT depend on this queue being the same in any future Promise callback
+      // that breaks out of the synchronous flow
+      const frontloadsQueue = FRONTLOAD_QUEUES[0]
 
-    if (process.env.NODE_ENV !== 'production' && withLogging) {
-      log('frontloadServerRender info', 'NOTE: as the logs show, the queue(s) are filled by Frontload before the second render, however they are NOT flushed, so the frontload fns DO NOT run twice.')
-      log('frontloadServerRender info', 'second render succeeded. Server rendering is done.')
+      // count if there are any incomplete frontloads left to run, we know this from if the collected
+      // promises from the final render pass is greater than the collected promises we just flushed from the queue
+      const frontloadsLeftToRun = frontloadsQueue.length - totalFrontloadsInThisRender
+
+      if (process.env.NODE_ENV !== 'production' && withLogging && frontloadsLeftToRun > 0) {
+        log(
+          'frontloadServerRender WARNING',
+          `maxNestedFrontloadComponents (${maxNestedFrontloadComponents}) option in frontloadServerRender has been reached, ` +
+          `yet there are still ${frontloadsLeftToRun} frontload child components to render. ` +
+          `I.e. you have more levels of nesting in your app than your configuration allows. ` +
+          `Server rendering will halt here and return the partially loaded result, which you probably don't want. ` +
+          `To fix this, either increase the levels of nesting allowed, or restructure your app so that it has fewer levels ` +
+          `of nested frontload components.`
+        )
+        log(
+          'frontloadServerRender info',
+          `NOTE: as the logs show, the queue(s) are filled by the extra render pass that was one over maxNestedFrontloadComponents (${maxNestedFrontloadComponents}), ` +
+          `however they are NOT flushed, so the frontload functions DO NOT actually run.`
+        )
+      }
+
+      // clean the queues after the final server render
+      cleanQueues()
+
+      // this is a Promise as we're returning from a then() callback
+      return incompleteRenderOutput
     }
 
-    return output
+    // this is a Promise
+    return frontloadServerRenderWorker(
+      render,
+      { withLogging, maxNestedFrontloadComponents },
+      renderNumber + 1,
+      frontloadsInLastRender + newFrontloadsInThisRender
+    )
   })
+}
 
-  return rendered
+export function frontloadServerRender (
+  render,
+  options
+) {
+  if (!options) {
+    options = {}
+  }
+
+  if (!options.maxNestedFrontloadComponents) {
+    // 1 (i.e. nesting OFF) is the default to not change behaviour from earlier 1.x versions
+    options.maxNestedFrontloadComponents = 1
+  }
+
+  // Turn on logging by default if not in production. It provides useful info and warnings in development.
+  // It can always be explictly configured off if preferred
+  if (process.env.NODE_ENV !== 'production' && options.withLogging === undefined) {
+    options.withLogging = true
+  }
+
+  // delegate work to a private worker function so as to not expose the third and fourth arguments to the public API
+  return frontloadServerRenderWorker(render, options)
 }

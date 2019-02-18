@@ -26,6 +26,10 @@ const buildHtml = (serverRenderedMarkup, styleTags, initialState) => `
   <html>
   <head>
     <title>react-frontload example</title>
+
+    <!-- so there is no favicon request -->
+    <link rel="icon" href="data:,">
+
     ${initialState ? `<script>window.initialState=${toSanitizedJSONString(initialState)}</script>` : ''}
     ${styleTags || ''}
   </head>
@@ -36,8 +40,10 @@ const buildHtml = (serverRenderedMarkup, styleTags, initialState) => `
   </html>
 `
 
-app.get('/server-render*', async (req, res) => {
-  const location = req.url
+const serverRenderRouter = express.Router()
+
+serverRenderRouter.get('*', async (req, res) => {
+  const location = req.originalUrl
   const context = {}
   const stateManager = StateManager.Server()
   const sheet = new ServerStyleSheet()
@@ -62,7 +68,7 @@ app.get('/server-render*', async (req, res) => {
   const start = Date.now()
 
   // to enable async server render via react-frontload, just wrap your server render function with frontloadServerRender
-  const serverRenderedMarkup = await frontloadServerRender(renderMarkup)
+  const serverRenderedMarkup = await frontloadServerRender(renderMarkup, { maxNestedFrontloadComponents: 4 })
   const end = Date.now()
   const redirect = context.url
 
@@ -77,9 +83,16 @@ app.get('/server-render*', async (req, res) => {
   }
 })
 
-app.get('/no-server-render*', (req, res) => {
+app.use('/server-render/', serverRenderRouter)
+
+const noServerRenderRouter = express.Router()
+
+noServerRenderRouter.get('*', (req, res) => {
+  console.log('hit ' + req.originalUrl)
   res.status(200).send(buildHtml())
 })
+
+app.use('/no-server-render/', noServerRenderRouter)
 
 app.get('/api/todos', async (req, res) => {
   res.type('json')
@@ -111,6 +124,10 @@ app.get('/api/todos/:todoId', async (req, res) => {
     console.log(`[example app] ERROR loading todo '${todoId}'`, err)
     res.status(404).send()
   }
+})
+
+app.get('/favicon.ico', (req, res) => {
+  res.status(404).send()
 })
 
 app.get('*', (req, res) => {
