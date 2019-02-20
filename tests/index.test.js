@@ -802,7 +802,7 @@ test('v0.0.2: Client render of <App /> with frontloads firing api calls based on
     })
 })
 
-test.only('v0.0.1: Server render of <App /> with nested frontload components', async () => {
+test('v0.0.1: Server render of <App /> with nested frontload components', async () => {
   let store = buildCleanStore()
 
   const App = () => (
@@ -820,7 +820,7 @@ test.only('v0.0.1: Server render of <App /> with nested frontload components', a
   await frontloadServerRender(() => (
     render(<App />)
   ), {
-    maxNestedFrontloadComponents: 2 // the exact level required, no more
+    maxNestedFrontloadComponents: 2 // the exact level of nesting required, no more
   }).then((serverRenderedMarkup) => {
     expect(MockApi.getA.withArgs('1').callCount).toBe(2) // called on 1st and 2nd renders
     expect(MockApi.getB.withArgs('3').callCount).toBe(1) // called only on 2nd render
@@ -839,7 +839,7 @@ test.only('v0.0.1: Server render of <App /> with nested frontload components', a
   await frontloadServerRender(() => (
     render(<App />)
   ), {
-    maxNestedFrontloadComponents: 3 // one more than required
+    maxNestedFrontloadComponents: 3 // one more level of nesting than required
   }).then((serverRenderedMarkup) => {
     expect(MockApi.getA.withArgs('1').callCount).toBe(2) // called on 1st and 2nd renders
     expect(MockApi.getB.withArgs('3').callCount).toBe(1) // called only on 2nd render
@@ -858,7 +858,7 @@ test.only('v0.0.1: Server render of <App /> with nested frontload components', a
   await frontloadServerRender(() => (
     render(<App />)
   ), {
-    maxNestedFrontloadComponents: 100000000 // much more than required, almost unlimited
+    maxNestedFrontloadComponents: 100000000 // many more levels of nesting than required, almost unlimited
   }).then((serverRenderedMarkup) => {
     expect(MockApi.getA.withArgs('1').callCount).toBe(2) // called on 1st and 2nd renders
     expect(MockApi.getB.withArgs('3').callCount).toBe(1) // called only on 2nd render
