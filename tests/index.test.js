@@ -283,590 +283,639 @@ const assertDataFromStoreIsRenderedOnServerIncludingFailures = (serverRenderedMa
   expect(serverRenderedMarkup.find('div.leaf').eq(3).text()).toBe('c 4')
 }
 
-test('v0.0.1: Client render of <App /> with all mock api call promises resolved', () => {
-  const store = buildCleanStore()
+describe('v0.0.1 and above features', () => {
+  describe('client render', () => {
+    test('with all mock api call promises resolved', () => {
+      const store = buildCleanStore()
 
-  const App = () => (
-    <Frontload isServer={false} >
-      <Component1 entityId='1' store={store} >
-        <Component3 entityId='2' store={store} />
-        <Component2 entityId='3' store={store} >
-          <Component3 entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
+      const App = () => (
+        <Frontload isServer={false} >
+          <Component1 entityId='1' store={store} >
+            <Component3 entityId='2' store={store} />
+            <Component2 entityId='3' store={store} >
+              <Component3 entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
 
-  // Frontload will not run on the first render on the client by default,
-  // because it is assumed server rendering is being used
-  //
-  // Frontload only runs from the first update onwards, when props have changed and data may need to
-  // be reloaded (of course, whether or not this is the case is entirely up to the frontload fn implementation(s))
-  //
-  // So, do a first render just to get it done!
-  const firstRender = mount(<App />)
+      // Frontload will not run on the first render on the client by default,
+      // because it is assumed server rendering is being used
+      //
+      // Frontload only runs from the first update onwards, when props have changed and data may need to
+      // be reloaded (of course, whether or not this is the case is entirely up to the frontload fn implementation(s))
+      //
+      // So, do a first render just to get it done!
+      const firstRender = mount(<App />)
 
-  assertDomStructureIsAsExpected(firstRender)
-  assertLoadersAreRendered(firstRender)
-  assertStoreIsEmpty(store)
+      assertDomStructureIsAsExpected(firstRender)
+      assertLoadersAreRendered(firstRender)
+      assertStoreIsEmpty(store)
 
-  // Now, force a first update to get frontload to run
-  const secondRender = firstRender.update()
+      // Now, force a first update to get frontload to run
+      const secondRender = firstRender.update()
 
-  assertDomStructureIsAsExpected(secondRender)
-  assertLoadersAreRendered(secondRender)
+      assertDomStructureIsAsExpected(secondRender)
+      assertLoadersAreRendered(secondRender)
 
-  // Wait until all mock api calls have completed, then force a second update to render
-  // with the content now loaded into the store from the mock api
-  return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
-    const thirdRender = secondRender.update()
+      // Wait until all mock api calls have completed, then force a second update to render
+      // with the content now loaded into the store from the mock api
+      return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
+        const thirdRender = secondRender.update()
 
-    assertDomStructureIsAsExpected(thirdRender)
-    assertStoreIsPopulated(store)
-    assertDataFromStoreIsRendered(thirdRender)
-  })
-})
+        assertDomStructureIsAsExpected(thirdRender)
+        assertStoreIsPopulated(store)
+        assertDataFromStoreIsRendered(thirdRender)
+      })
+    })
 
-test('v0.0.1: Client render of <App /> with 2 mock api call promises resolved and 2 rejected', () => {
-  const store = buildCleanStore()
+    test('with 2 mock api call promises resolved and 2 rejected', () => {
+      const store = buildCleanStore()
 
-  const App = () => (
-    <Frontload isServer={false} >
-      <Component1 entityId='1' store={store} >
-        <Component3 entityId='2' store={store} mockRestrictedEntity />
-        <Component2 entityId='3' store={store} mockRestrictedEntity >
-          <Component3 entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
+      const App = () => (
+        <Frontload isServer={false} >
+          <Component1 entityId='1' store={store} >
+            <Component3 entityId='2' store={store} mockRestrictedEntity />
+            <Component2 entityId='3' store={store} mockRestrictedEntity >
+              <Component3 entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
 
-  const firstRender = mount(<App />)
-  assertDomStructureIsAsExpected(firstRender)
-  assertLoadersAreRendered(firstRender)
-  assertStoreIsEmpty(store)
+      const firstRender = mount(<App />)
+      assertDomStructureIsAsExpected(firstRender)
+      assertLoadersAreRendered(firstRender)
+      assertStoreIsEmpty(store)
 
-  const secondRender = firstRender.update()
-  assertDomStructureIsAsExpected(secondRender)
-  assertLoadersAreRendered(secondRender)
-  assertStoreIsEmpty(store)
+      const secondRender = firstRender.update()
+      assertDomStructureIsAsExpected(secondRender)
+      assertLoadersAreRendered(secondRender)
+      assertStoreIsEmpty(store)
 
-  // this is just used to continue after all the mock api responses have returned
-  // one promise will be rejected, hence the mapping all promises to ignore catch
-  const allPromisesResolved =
-    Promise.all([ ...MOCK_API_PROMISES ].map((promise) => promise.catch(() => true)))
+      // this is just used to continue after all the mock api responses have returned
+      // one promise will be rejected, hence the mapping all promises to ignore catch
+      const allPromisesResolved =
+        Promise.all([ ...MOCK_API_PROMISES ].map((promise) => promise.catch(() => true)))
 
-  return allPromisesResolved.then(() => {
-    const thirdRender = secondRender.update()
+      return allPromisesResolved.then(() => {
+        const thirdRender = secondRender.update()
 
-    assertDomStructureIsAsExpected(thirdRender)
-    assertStoreIsPopulatedIncludingFailures(store)
-    assertDataFromStoreIsRenderedIncludingFailures(thirdRender)
-  })
-})
+        assertDomStructureIsAsExpected(thirdRender)
+        assertStoreIsPopulatedIncludingFailures(store)
+        assertDataFromStoreIsRenderedIncludingFailures(thirdRender)
+      })
+    })
 
-test('v0.0.1: Client render of <App /> with server rendering configured off globally', () => {
-  const store = buildCleanStore()
+    test('with server rendering configured off globally', () => {
+      const store = buildCleanStore()
 
-  const App = () => (
-    <Frontload isServer={false} noServerRender >
-      <Component1 entityId='1' store={store} >
-        <Component3 entityId='2' store={store} />
-        <Component2 entityId='3' store={store} >
-          <Component3 entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
+      const App = () => (
+        <Frontload isServer={false} noServerRender >
+          <Component1 entityId='1' store={store} >
+            <Component3 entityId='2' store={store} />
+            <Component2 entityId='3' store={store} >
+              <Component3 entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
 
-  // every frontload function will run on the first render on the client,
-  // because the global noServerRendering configuration is set
-  const firstRender = mount(<App />)
+      // every frontload function will run on the first render on the client,
+      // because the global noServerRendering configuration is set
+      const firstRender = mount(<App />)
 
-  assertDomStructureIsAsExpected(firstRender)
-  assertLoadersAreRendered(firstRender)
-  assertStoreIsEmpty(store)
+      assertDomStructureIsAsExpected(firstRender)
+      assertLoadersAreRendered(firstRender)
+      assertStoreIsEmpty(store)
 
-  // Wait until all mock api calls have completed, then force a second update to render
-  // with the content now loaded into the store from the mock api
-  return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
-    const secondRender = firstRender.update()
+      // Wait until all mock api calls have completed, then force a second update to render
+      // with the content now loaded into the store from the mock api
+      return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
+        const secondRender = firstRender.update()
 
-    assertDomStructureIsAsExpected(secondRender)
-    assertStoreIsPopulated(store)
-    assertDataFromStoreIsRendered(secondRender)
-  })
-})
+        assertDomStructureIsAsExpected(secondRender)
+        assertStoreIsPopulated(store)
+        assertDataFromStoreIsRendered(secondRender)
+      })
+    })
 
-test('v0.0.1: Client render of <App /> with server rendering configured off for one component', () => {
-  const store = buildCleanStore()
+    test('with server rendering configured off for one component', () => {
+      const store = buildCleanStore()
 
-  const App = () => (
-    <Frontload isServer={false} >
-      <Component1 entityId='1' store={store} >
-        <Component3 entityId='2' store={store} />
-        <Component2 entityId='3' store={store} >
-          <Component3WithNoServerRender entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
+      const App = () => (
+        <Frontload isServer={false} >
+          <Component1 entityId='1' store={store} >
+            <Component3 entityId='2' store={store} />
+            <Component2 entityId='3' store={store} >
+              <Component3WithNoServerRender entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
 
-  // Frontload will run on the first render only for Component3WithNoServerRender
-  // since it is the only component with noServerRendering === true
-  const firstRender = mount(<App />)
-
-  // assert dom structure
-  expect(firstRender.find(Component1)).toHaveLength(1)
-  expect(firstRender.find(Component2)).toHaveLength(1)
-  expect(firstRender.find(Component3)).toHaveLength(1)
-  expect(firstRender.find(Component3WithNoServerRender)).toHaveLength(1)
-  expect(firstRender.find(Parent)).toHaveLength(2)
-  expect(firstRender.find(Leaf)).toHaveLength(4)
-
-  assertLoadersAreRendered(firstRender)
-  assertStoreIsEmpty(store)
-
-  // Wait until the mock api call has completed for Component3WithNoServerRender,
-  // then force an update to render the loaded data for that component, and execute
-  // the frontloads for all the other components (now that we are past the first render)
-  return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
-    const secondRender = firstRender.update()
-
-    // assert dom structure
-    expect(secondRender.find(Component1)).toHaveLength(1)
-    expect(secondRender.find(Component2)).toHaveLength(1)
-    expect(secondRender.find(Component3)).toHaveLength(1)
-    expect(secondRender.find(Component3WithNoServerRender)).toHaveLength(1)
-    expect(secondRender.find(Parent)).toHaveLength(2)
-    expect(secondRender.find(Leaf)).toHaveLength(4)
-
-    // assert store is only populated in the store for Component3WithNoServerRender
-    expect(store.a['1']).toBeUndefined()
-    expect(store.b['3']).toBeUndefined()
-    expect(store.c['2']).toBeUndefined()
-    expect(store.c['4']).toEqual({ id: '4', data: 'c 4' })
-
-    // assert data is only rendered for Component3WithNoServerRender
-    expect(secondRender.find(Leaf).at(0).text()).toBe('loading...')
-    expect(secondRender.find(Leaf).at(1).text()).toBe('loading...')
-    expect(secondRender.find(Leaf).at(2).text()).toBe('loading...')
-    expect(secondRender.find(Leaf).at(3).text()).toBe('c 4')
-
-    return Promise.all([ ...MOCK_API_PROMISES ]).then(() => secondRender)
-  })
-  // Wait until all mock api calls have completed, then force a third update to render
-  // with the content now loaded into the store from the mock api
-    .then((secondRender) => {
-      const thirdRender = secondRender.update()
+      // Frontload will run on the first render only for Component3WithNoServerRender
+      // since it is the only component with noServerRendering === true
+      const firstRender = mount(<App />)
 
       // assert dom structure
-      expect(thirdRender.find(Component1)).toHaveLength(1)
-      expect(thirdRender.find(Component2)).toHaveLength(1)
-      expect(thirdRender.find(Component3)).toHaveLength(1)
-      expect(thirdRender.find(Component3WithNoServerRender)).toHaveLength(1)
-      expect(thirdRender.find(Parent)).toHaveLength(2)
-      expect(thirdRender.find(Leaf)).toHaveLength(4)
+      expect(firstRender.find(Component1)).toHaveLength(1)
+      expect(firstRender.find(Component2)).toHaveLength(1)
+      expect(firstRender.find(Component3)).toHaveLength(1)
+      expect(firstRender.find(Component3WithNoServerRender)).toHaveLength(1)
+      expect(firstRender.find(Parent)).toHaveLength(2)
+      expect(firstRender.find(Leaf)).toHaveLength(4)
 
-      assertStoreIsPopulated(store)
-      assertDataFromStoreIsRendered(thirdRender)
+      assertLoadersAreRendered(firstRender)
+      assertStoreIsEmpty(store)
+
+      // Wait until the mock api call has completed for Component3WithNoServerRender,
+      // then force an update to render the loaded data for that component, and execute
+      // the frontloads for all the other components (now that we are past the first render)
+      return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
+        const secondRender = firstRender.update()
+
+        // assert dom structure
+        expect(secondRender.find(Component1)).toHaveLength(1)
+        expect(secondRender.find(Component2)).toHaveLength(1)
+        expect(secondRender.find(Component3)).toHaveLength(1)
+        expect(secondRender.find(Component3WithNoServerRender)).toHaveLength(1)
+        expect(secondRender.find(Parent)).toHaveLength(2)
+        expect(secondRender.find(Leaf)).toHaveLength(4)
+
+        // assert store is only populated in the store for Component3WithNoServerRender
+        expect(store.a['1']).toBeUndefined()
+        expect(store.b['3']).toBeUndefined()
+        expect(store.c['2']).toBeUndefined()
+        expect(store.c['4']).toEqual({ id: '4', data: 'c 4' })
+
+        // assert data is only rendered for Component3WithNoServerRender
+        expect(secondRender.find(Leaf).at(0).text()).toBe('loading...')
+        expect(secondRender.find(Leaf).at(1).text()).toBe('loading...')
+        expect(secondRender.find(Leaf).at(2).text()).toBe('loading...')
+        expect(secondRender.find(Leaf).at(3).text()).toBe('c 4')
+
+        return Promise.all([ ...MOCK_API_PROMISES ]).then(() => secondRender)
+      })
+      // Wait until all mock api calls have completed, then force a third update to render
+      // with the content now loaded into the store from the mock api
+        .then((secondRender) => {
+          const thirdRender = secondRender.update()
+
+          // assert dom structure
+          expect(thirdRender.find(Component1)).toHaveLength(1)
+          expect(thirdRender.find(Component2)).toHaveLength(1)
+          expect(thirdRender.find(Component3)).toHaveLength(1)
+          expect(thirdRender.find(Component3WithNoServerRender)).toHaveLength(1)
+          expect(thirdRender.find(Parent)).toHaveLength(2)
+          expect(thirdRender.find(Leaf)).toHaveLength(4)
+
+          assertStoreIsPopulated(store)
+          assertDataFromStoreIsRendered(thirdRender)
+        })
     })
-})
 
-test('v0.0.1: Client render of <App /> with server rendering configured off globally', () => {
-  const store = buildCleanStore()
+    test('with server rendering configured off globally', () => {
+      const store = buildCleanStore()
 
-  const App = () => (
-    <Frontload isServer={false} noServerRender >
-      <Component1 entityId='1' store={store} >
-        <Component3 entityId='2' store={store} />
-        <Component2 entityId='3' store={store} >
-          <Component3 entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
+      const App = () => (
+        <Frontload isServer={false} noServerRender >
+          <Component1 entityId='1' store={store} >
+            <Component3 entityId='2' store={store} />
+            <Component2 entityId='3' store={store} >
+              <Component3 entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
 
-  // every frontload function will run on the first render on the client,
-  // because the global noServerRendering configuration is set
-  const firstRender = mount(<App />)
+      // every frontload function will run on the first render on the client,
+      // because the global noServerRendering configuration is set
+      const firstRender = mount(<App />)
 
-  assertDomStructureIsAsExpected(firstRender)
-  assertLoadersAreRendered(firstRender)
-  assertStoreIsEmpty(store)
+      assertDomStructureIsAsExpected(firstRender)
+      assertLoadersAreRendered(firstRender)
+      assertStoreIsEmpty(store)
 
-  // Wait until all mock api calls have completed, then force a second update to render
-  // with the content now loaded into the store from the mock api
-  return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
-    const secondRender = firstRender.update()
+      // Wait until all mock api calls have completed, then force a second update to render
+      // with the content now loaded into the store from the mock api
+      return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
+        const secondRender = firstRender.update()
 
-    assertDomStructureIsAsExpected(secondRender)
-    assertStoreIsPopulated(store)
-    assertDataFromStoreIsRendered(secondRender)
+        assertDomStructureIsAsExpected(secondRender)
+        assertStoreIsPopulated(store)
+        assertDataFromStoreIsRendered(secondRender)
+      })
+    })
+  })
+
+  describe('server render', () => {
+    test('with all mock api call promises resolved', () => {
+      const store = buildCleanStore()
+
+      const App = () => (
+        <Frontload isServer >
+          <Component1 entityId='1' store={store} >
+            <Component3 entityId='2' store={store} />
+            <Component2 entityId='3' store={store} >
+              <Component3 entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
+
+      return frontloadServerRender(() => (
+        render(<App />)
+      )).then((serverRenderedMarkup) => {
+        expect(MockApi.getA.withArgs('1').callCount).toBe(1)
+        expect(MockApi.getB.withArgs('3').callCount).toBe(1)
+        expect(MockApi.getC.withArgs('2').callCount).toBe(1)
+        expect(MockApi.getC.withArgs('4').callCount).toBe(1)
+
+        assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
+        assertStoreIsPopulated(store)
+        assertDataFromStoreIsRenderedOnServer(serverRenderedMarkup)
+      })
+    })
+
+    test('with 2 mock api call promises resolved and 2 rejected', () => {
+      const store = buildCleanStore()
+
+      const App = () => (
+        <Frontload isServer >
+          <Component1 entityId='1' store={store} >
+            <Component3 entityId='2' store={store} mockRestrictedEntity />
+            <Component2 entityId='3' store={store} mockRestrictedEntity >
+              <Component3 entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
+
+      return frontloadServerRender(() => (
+        render(<App />)
+      )).then((serverRenderedMarkup) => {
+        expect(MockApi.getA.withArgs('1').callCount).toBe(1)
+        expect(MockApi.getB.withArgs('3', true).callCount).toBe(1)
+        expect(MockApi.getC.withArgs('2', true).callCount).toBe(1)
+        expect(MockApi.getC.withArgs('4').callCount).toBe(1)
+
+        assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
+        assertStoreIsPopulatedIncludingFailures(store)
+        assertDataFromStoreIsRenderedOnServerIncludingFailures(serverRenderedMarkup)
+      })
+    })
+
+    test('with server rendering configured off globally', () => {
+      const store = buildCleanStore()
+
+      const App = () => (
+        <Frontload isServer noServerRender >
+          <Component1 entityId='1' store={store} >
+            <Component3 entityId='2' store={store} />
+            <Component2 entityId='3' store={store} >
+              <Component3 entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
+
+      return frontloadServerRender(() => (
+        render(<App />)
+      )).then((serverRenderedMarkup) => {
+        expect(MockApi.getA.withArgs('1').callCount).toBe(0)
+        expect(MockApi.getB.withArgs('3').callCount).toBe(0)
+        expect(MockApi.getC.withArgs('2').callCount).toBe(0)
+        expect(MockApi.getC.withArgs('4').callCount).toBe(0)
+
+        assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
+        assertStoreIsEmpty(store)
+        assertLoadersAreRenderedOnServer(serverRenderedMarkup)
+      })
+    })
+
+    test('with server rendering configured off for one component', () => {
+      const store = buildCleanStore()
+
+      const App = () => (
+        <Frontload isServer >
+          <Component1 entityId='1' store={store} >
+            <Component3 entityId='2' store={store} />
+            <Component2 entityId='3' store={store} >
+              <Component3WithNoServerRender entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
+
+      return frontloadServerRender(() => (
+        render(<App />)
+      )).then((serverRenderedMarkup) => {
+        expect(MockApi.getA.withArgs('1').callCount).toBe(1)
+        expect(MockApi.getB.withArgs('3').callCount).toBe(1)
+        expect(MockApi.getC.withArgs('2').callCount).toBe(1)
+        expect(MockApi.getC.withArgs('4').callCount).toBe(0)
+
+        assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
+
+        // assert all data is populated in store apart from the data loaded by Component3WithNoServerRender
+        expect(store.a['1']).toEqual({ id: '1', data: 'a 1' })
+        expect(store.b['3']).toEqual({ id: '3', data: 'b 3' })
+        expect(store.c['2']).toEqual({ id: '2', data: 'c 2' })
+        expect(store.c['4']).toBeUndefined()
+
+        // assert all data is rendered apart from the data for Component3WithNoServerRender, which still shows loading
+        expect(serverRenderedMarkup.find('div.leaf').eq(0).text()).toBe('a 1')
+        expect(serverRenderedMarkup.find('div.leaf').eq(1).text()).toBe('c 2')
+        expect(serverRenderedMarkup.find('div.leaf').eq(2).text()).toBe('b 3')
+        expect(serverRenderedMarkup.find('div.leaf').eq(3).text()).toBe('loading...')
+      })
+    })
   })
 })
 
-test('v0.0.4: Client render of <App /> with nested frontload components', () => {
-  const store = buildCleanStore()
+describe('v0.0.2 and above features', () => {
+  describe('client render', () => {
+    test('with frontloads firing api calls based on lifecycle phase', () => {
+      const store = buildCleanStore()
 
-  const App = () => (
-    <Frontload isServer={false} >
-      {/*  onlyRenderChildrenWhenDataLoaded prop means that children only load once Component1's frontload has resolved with data */}
-      <Component1 entityId='1' store={store} onlyRenderChildrenWhenDataLoaded >
-        <Component3 entityId='2' store={store} />
-        <Component2 entityId='3' store={store} >
-          <Component3 entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
+      const App = () => (
+        <Frontload isServer={false} noServerRender >
+          <Component1 entityId='1' store={store} >
+            <Component2WithFrontloadOnlyFiringOnUpdate entityId='2' store={store} >
+              <Component3WithFrontloadOnlyFiringOnMount entityId='3' store={store} />
+            </Component2WithFrontloadOnlyFiringOnUpdate>
+          </Component1>
+        </Frontload>
+      )
 
-  // Frontload will not run on the first render on the client by default,
-  // because it is assumed server rendering is being used
-  //
-  // Frontload only runs from the first update onwards, when props have changed and data may need to
-  // be reloaded (of course, whether or not this is the case is entirely up to the frontload fn implementation(s))
-  //
-  // So, do a first render just to get it done!
-  const firstRender = mount(<App />)
+      const firstRender = mount(<App />)
 
-  expect(firstRender.find(Component1)).toHaveLength(1)
-  expect(firstRender.find(Component2)).toHaveLength(0)
-  expect(firstRender.find(Component3)).toHaveLength(0)
-  expect(firstRender.find(Parent)).toHaveLength(1)
-  expect(firstRender.find(Leaf)).toHaveLength(1)
-
-  expect(firstRender.find('div.loading-data').at(0).text()).toBe('data loading from frontload function')
-  expect(firstRender.find(Leaf).at(0).text()).toBe('loading...')
-
-  assertStoreIsEmpty(store)
-
-  // Now, force a first update to get frontload to run
-  const secondRender = firstRender.update()
-
-  expect(secondRender.find(Component1)).toHaveLength(1)
-  expect(secondRender.find(Component2)).toHaveLength(0)
-  expect(secondRender.find(Component3)).toHaveLength(0)
-  expect(secondRender.find(Parent)).toHaveLength(1)
-  expect(secondRender.find(Leaf)).toHaveLength(1)
-
-  expect(firstRender.find('div.loading-data').at(0).text()).toBe('data loading from frontload function')
-  expect(secondRender.find(Leaf).at(0).text()).toBe('loading...')
-
-  // Wait until all mock api calls have completed, then force another update to render
-  // with the content now loaded into the store from the mock api and start the nested frontload
-  // components rendering
-  return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
-    const thirdRender = secondRender.update()
-
-    expect(thirdRender.find(Component1)).toHaveLength(1)
-    expect(thirdRender.find(Component2)).toHaveLength(1)
-    expect(thirdRender.find(Component3)).toHaveLength(2)
-    expect(thirdRender.find(Parent)).toHaveLength(2)
-    expect(thirdRender.find(Leaf)).toHaveLength(4)
-
-    expect(thirdRender.find(Leaf).at(0).text()).toBe('a 1')
-    expect(thirdRender.find(Leaf).at(1).text()).toBe('loading...')
-    expect(thirdRender.find(Leaf).at(2).text()).toBe('loading...')
-    expect(thirdRender.find(Leaf).at(3).text()).toBe('loading...')
-
-    expect(store.a['1']).toEqual({ id: '1', data: 'a 1' })
-    expect(store.b['3']).toBeUndefined()
-    expect(store.c['2']).toBeUndefined()
-    expect(store.c['4']).toBeUndefined()
-
-    // wait until the now rendering frontloads' mock api calls have completed, then force another update to render
-    // with the content now loaded into the store from the mock api
-    return Promise.all([ ...MOCK_API_PROMISES ]).then(() => thirdRender)
-  }).then((thirdRender) => {
-    const fourthRender = thirdRender.update()
-
-    assertDomStructureIsAsExpected(fourthRender)
-    assertStoreIsPopulated(store)
-    assertDataFromStoreIsRendered(fourthRender)
-  })
-})
-
-test('v0.0.1: Server render of <App /> with all mock api call promises resolved', () => {
-  const store = buildCleanStore()
-
-  const App = () => (
-    <Frontload isServer >
-      <Component1 entityId='1' store={store} >
-        <Component3 entityId='2' store={store} />
-        <Component2 entityId='3' store={store} >
-          <Component3 entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
-
-  return frontloadServerRender(() => (
-    render(<App />)
-  )).then((serverRenderedMarkup) => {
-    expect(MockApi.getA.withArgs('1').callCount).toBe(1)
-    expect(MockApi.getB.withArgs('3').callCount).toBe(1)
-    expect(MockApi.getC.withArgs('2').callCount).toBe(1)
-    expect(MockApi.getC.withArgs('4').callCount).toBe(1)
-
-    assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
-    assertStoreIsPopulated(store)
-    assertDataFromStoreIsRenderedOnServer(serverRenderedMarkup)
-  })
-})
-
-test('v0.0.1: Server render of <App /> with 2 mock api call promises resolved and 2 rejected', () => {
-  const store = buildCleanStore()
-
-  const App = () => (
-    <Frontload isServer >
-      <Component1 entityId='1' store={store} >
-        <Component3 entityId='2' store={store} mockRestrictedEntity />
-        <Component2 entityId='3' store={store} mockRestrictedEntity >
-          <Component3 entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
-
-  return frontloadServerRender(() => (
-    render(<App />)
-  )).then((serverRenderedMarkup) => {
-    expect(MockApi.getA.withArgs('1').callCount).toBe(1)
-    expect(MockApi.getB.withArgs('3', true).callCount).toBe(1)
-    expect(MockApi.getC.withArgs('2', true).callCount).toBe(1)
-    expect(MockApi.getC.withArgs('4').callCount).toBe(1)
-
-    assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
-    assertStoreIsPopulatedIncludingFailures(store)
-    assertDataFromStoreIsRenderedOnServerIncludingFailures(serverRenderedMarkup)
-  })
-})
-
-test('v0.0.1: Server render of <App /> with server rendering configured off globally', () => {
-  const store = buildCleanStore()
-
-  const App = () => (
-    <Frontload isServer noServerRender >
-      <Component1 entityId='1' store={store} >
-        <Component3 entityId='2' store={store} />
-        <Component2 entityId='3' store={store} >
-          <Component3 entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
-
-  return frontloadServerRender(() => (
-    render(<App />)
-  )).then((serverRenderedMarkup) => {
-    expect(MockApi.getA.withArgs('1').callCount).toBe(0)
-    expect(MockApi.getB.withArgs('3').callCount).toBe(0)
-    expect(MockApi.getC.withArgs('2').callCount).toBe(0)
-    expect(MockApi.getC.withArgs('4').callCount).toBe(0)
-
-    assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
-    assertStoreIsEmpty(store)
-    assertLoadersAreRenderedOnServer(serverRenderedMarkup)
-  })
-})
-
-test('v0.0.1: Server render of <App /> with server rendering configured off for one component', () => {
-  const store = buildCleanStore()
-
-  const App = () => (
-    <Frontload isServer >
-      <Component1 entityId='1' store={store} >
-        <Component3 entityId='2' store={store} />
-        <Component2 entityId='3' store={store} >
-          <Component3WithNoServerRender entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
-
-  return frontloadServerRender(() => (
-    render(<App />)
-  )).then((serverRenderedMarkup) => {
-    expect(MockApi.getA.withArgs('1').callCount).toBe(1)
-    expect(MockApi.getB.withArgs('3').callCount).toBe(1)
-    expect(MockApi.getC.withArgs('2').callCount).toBe(1)
-    expect(MockApi.getC.withArgs('4').callCount).toBe(0)
-
-    assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
-
-    // assert all data is populated in store apart from the data loaded by Component3WithNoServerRender
-    expect(store.a['1']).toEqual({ id: '1', data: 'a 1' })
-    expect(store.b['3']).toEqual({ id: '3', data: 'b 3' })
-    expect(store.c['2']).toEqual({ id: '2', data: 'c 2' })
-    expect(store.c['4']).toBeUndefined()
-
-    // assert all data is rendered apart from the data for Component3WithNoServerRender, which still shows loading
-    expect(serverRenderedMarkup.find('div.leaf').eq(0).text()).toBe('a 1')
-    expect(serverRenderedMarkup.find('div.leaf').eq(1).text()).toBe('c 2')
-    expect(serverRenderedMarkup.find('div.leaf').eq(2).text()).toBe('b 3')
-    expect(serverRenderedMarkup.find('div.leaf').eq(3).text()).toBe('loading...')
-  })
-})
-
-test('v0.0.2: Client render of <App /> with frontloads firing api calls based on lifecycle phase', () => {
-  const store = buildCleanStore()
-
-  const App = () => (
-    <Frontload isServer={false} noServerRender >
-      <Component1 entityId='1' store={store} >
-        <Component2WithFrontloadOnlyFiringOnUpdate entityId='2' store={store} >
-          <Component3WithFrontloadOnlyFiringOnMount entityId='3' store={store} />
-        </Component2WithFrontloadOnlyFiringOnUpdate>
-      </Component1>
-    </Frontload>
-  )
-
-  const firstRender = mount(<App />)
-
-  // After first render:
-  // Component 1 frontload should run (configured to run on both mount and update)
-  // Component 2 frontload should NOT run (configured to only run on update - this is a mount)
-  // Component 3 frontload should run (configured to run only on mount - this is the mount)
-  expect(MockApi.getA.withArgs('1').callCount).toBe(1)
-  expect(MockApi.getB.withArgs('2').callCount).toBe(0)
-  expect(MockApi.getC.withArgs('3').callCount).toBe(1)
-
-  // Assert content is loading (frontload promises, from those that ran, are still in flight at this stage)
-  expect(firstRender.find(Component1)).toHaveLength(1)
-  expect(firstRender.find(Component2WithFrontloadOnlyFiringOnUpdate)).toHaveLength(1)
-  expect(firstRender.find(Component3WithFrontloadOnlyFiringOnMount)).toHaveLength(1)
-  expect(firstRender.find(Parent)).toHaveLength(2)
-  expect(firstRender.find(Leaf)).toHaveLength(3)
-
-  expect(firstRender.find(Leaf).at(0).text()).toBe('loading...')
-  expect(firstRender.find(Leaf).at(1).text()).toBe('loading...')
-  expect(firstRender.find(Leaf).at(2).text()).toBe('loading...')
-
-  assertStoreIsEmpty(store)
-
-  // Wait until all mock api calls have completed, then force an update to render the loaded data
-  return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
-    const secondRender = firstRender.update()
-
-    // after second render:
-    // Component 1 frontload should run again (configured to run on both mount and update)
-    // Component 2 frontload should run (configured to only run on update - this is an update)
-    // Component 3 frontload should NOT run (configured to run only on mount - this is an update)
-    expect(MockApi.getA.withArgs('1').callCount).toBe(2)
-    expect(MockApi.getB.withArgs('2').callCount).toBe(1)
-    expect(MockApi.getC.withArgs('3').callCount).toBe(1)
-
-    // Assert loaded content is rendered, and component 2 which still has its frontload promise in flight shows loading
-    expect(firstRender.find(Component1)).toHaveLength(1)
-    expect(firstRender.find(Component2WithFrontloadOnlyFiringOnUpdate)).toHaveLength(1)
-    expect(firstRender.find(Component3WithFrontloadOnlyFiringOnMount)).toHaveLength(1)
-    expect(firstRender.find(Parent)).toHaveLength(2)
-    expect(firstRender.find(Leaf)).toHaveLength(3)
-
-    expect(firstRender.find(Leaf).at(0).text()).toBe('a 1')
-    expect(firstRender.find(Leaf).at(1).text()).toBe('loading...') // Component 2's frontload only ran on second render, promise still in flight, data still loading
-    expect(firstRender.find(Leaf).at(2).text()).toBe('c 3')
-
-    expect(store.a['1']).toEqual({ id: '1', data: 'a 1' })
-    expect(store.b['2']).toBeUndefined() // Component 2's frontload only ran on second render, promise still in flight, data still loading
-    expect(store.c['3']).toEqual({ id: '3', data: 'c 3' })
-
-    return Promise.all([ ...MOCK_API_PROMISES ]).then(() => secondRender)
-  })
-    .then((secondRender) => {
-      const thirdRender = secondRender.update()
-
-      // after third render:
-      // Component 1 frontload should run again (configured to run on both mount and update)
-      // Component 2 frontload should run again (configured to only run on update - this is an update)
-      // Component 3 frontload should NOT run (configured to run only on mount - this is an update)
-      expect(MockApi.getA.withArgs('1').callCount).toBe(3)
-      expect(MockApi.getB.withArgs('2').callCount).toBe(2)
+      // After first render:
+      // Component 1 frontload should run (configured to run on both mount and update)
+      // Component 2 frontload should NOT run (configured to only run on update - this is a mount)
+      // Component 3 frontload should run (configured to run only on mount - this is the mount)
+      expect(MockApi.getA.withArgs('1').callCount).toBe(1)
+      expect(MockApi.getB.withArgs('2').callCount).toBe(0)
       expect(MockApi.getC.withArgs('3').callCount).toBe(1)
 
-      // Assert all content is loaded and rendered now
-      expect(thirdRender.find(Component1)).toHaveLength(1)
-      expect(thirdRender.find(Component2WithFrontloadOnlyFiringOnUpdate)).toHaveLength(1)
-      expect(thirdRender.find(Component3WithFrontloadOnlyFiringOnMount)).toHaveLength(1)
-      expect(thirdRender.find(Parent)).toHaveLength(2)
-      expect(thirdRender.find(Leaf)).toHaveLength(3)
+      // Assert content is loading (frontload promises, from those that ran, are still in flight at this stage)
+      expect(firstRender.find(Component1)).toHaveLength(1)
+      expect(firstRender.find(Component2WithFrontloadOnlyFiringOnUpdate)).toHaveLength(1)
+      expect(firstRender.find(Component3WithFrontloadOnlyFiringOnMount)).toHaveLength(1)
+      expect(firstRender.find(Parent)).toHaveLength(2)
+      expect(firstRender.find(Leaf)).toHaveLength(3)
 
-      expect(thirdRender.find(Leaf).at(0).text()).toBe('a 1')
-      expect(thirdRender.find(Leaf).at(1).text()).toBe('b 2')
-      expect(thirdRender.find(Leaf).at(2).text()).toBe('c 3')
+      expect(firstRender.find(Leaf).at(0).text()).toBe('loading...')
+      expect(firstRender.find(Leaf).at(1).text()).toBe('loading...')
+      expect(firstRender.find(Leaf).at(2).text()).toBe('loading...')
 
-      expect(store.a['1']).toEqual({ id: '1', data: 'a 1' })
-      expect(store.b['2']).toEqual({ id: '2', data: 'b 2' })
-      expect(store.c['3']).toEqual({ id: '3', data: 'c 3' })
+      assertStoreIsEmpty(store)
+
+      // Wait until all mock api calls have completed, then force an update to render the loaded data
+      return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
+        const secondRender = firstRender.update()
+
+        // after second render:
+        // Component 1 frontload should run again (configured to run on both mount and update)
+        // Component 2 frontload should run (configured to only run on update - this is an update)
+        // Component 3 frontload should NOT run (configured to run only on mount - this is an update)
+        expect(MockApi.getA.withArgs('1').callCount).toBe(2)
+        expect(MockApi.getB.withArgs('2').callCount).toBe(1)
+        expect(MockApi.getC.withArgs('3').callCount).toBe(1)
+
+        // Assert loaded content is rendered, and component 2 which still has its frontload promise in flight shows loading
+        expect(firstRender.find(Component1)).toHaveLength(1)
+        expect(firstRender.find(Component2WithFrontloadOnlyFiringOnUpdate)).toHaveLength(1)
+        expect(firstRender.find(Component3WithFrontloadOnlyFiringOnMount)).toHaveLength(1)
+        expect(firstRender.find(Parent)).toHaveLength(2)
+        expect(firstRender.find(Leaf)).toHaveLength(3)
+
+        expect(firstRender.find(Leaf).at(0).text()).toBe('a 1')
+        expect(firstRender.find(Leaf).at(1).text()).toBe('loading...') // Component 2's frontload only ran on second render, promise still in flight, data still loading
+        expect(firstRender.find(Leaf).at(2).text()).toBe('c 3')
+
+        expect(store.a['1']).toEqual({ id: '1', data: 'a 1' })
+        expect(store.b['2']).toBeUndefined() // Component 2's frontload only ran on second render, promise still in flight, data still loading
+        expect(store.c['3']).toEqual({ id: '3', data: 'c 3' })
+
+        return Promise.all([ ...MOCK_API_PROMISES ]).then(() => secondRender)
+      })
+        .then((secondRender) => {
+          const thirdRender = secondRender.update()
+
+          // after third render:
+          // Component 1 frontload should run again (configured to run on both mount and update)
+          // Component 2 frontload should run again (configured to only run on update - this is an update)
+          // Component 3 frontload should NOT run (configured to run only on mount - this is an update)
+          expect(MockApi.getA.withArgs('1').callCount).toBe(3)
+          expect(MockApi.getB.withArgs('2').callCount).toBe(2)
+          expect(MockApi.getC.withArgs('3').callCount).toBe(1)
+
+          // Assert all content is loaded and rendered now
+          expect(thirdRender.find(Component1)).toHaveLength(1)
+          expect(thirdRender.find(Component2WithFrontloadOnlyFiringOnUpdate)).toHaveLength(1)
+          expect(thirdRender.find(Component3WithFrontloadOnlyFiringOnMount)).toHaveLength(1)
+          expect(thirdRender.find(Parent)).toHaveLength(2)
+          expect(thirdRender.find(Leaf)).toHaveLength(3)
+
+          expect(thirdRender.find(Leaf).at(0).text()).toBe('a 1')
+          expect(thirdRender.find(Leaf).at(1).text()).toBe('b 2')
+          expect(thirdRender.find(Leaf).at(2).text()).toBe('c 3')
+
+          expect(store.a['1']).toEqual({ id: '1', data: 'a 1' })
+          expect(store.b['2']).toEqual({ id: '2', data: 'b 2' })
+          expect(store.c['3']).toEqual({ id: '3', data: 'c 3' })
+        })
     })
+  })
 })
 
-test('v0.0.1: Server render of <App /> with nested frontload components', async () => {
-  let store = buildCleanStore()
+describe('v0.0.4 and above features', () => {
+  describe('client render', () => {
+    test('with nested frontload components', () => {
+      const store = buildCleanStore()
 
-  const App = () => (
-    <Frontload isServer >
-      {/*  onlyRenderChildrenWhenDataLoaded prop means that children only load once Component1's frontload has resolved with data */}
-      <Component1 entityId='1' store={store} onlyRenderChildrenWhenDataLoaded >
-        <Component3 entityId='2' store={store} />
-        <Component2 entityId='3' store={store} >
-          <Component3 entityId='4' store={store} />
-        </Component2>
-      </Component1>
-    </Frontload>
-  )
+      const App = () => (
+        <Frontload isServer={false} >
+          {/*  onlyRenderChildrenWhenDataLoaded prop means that children only load once Component1's frontload has resolved with data */}
+          <Component1 entityId='1' store={store} onlyRenderChildrenWhenDataLoaded >
+            <Component3 entityId='2' store={store} />
+            <Component2 entityId='3' store={store} >
+              <Component3 entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
 
-  await frontloadServerRender(() => (
-    render(<App />)
-  ), {
-    maxNestedFrontloadComponents: 2 // the exact level of nesting required, no more
-  }).then((serverRenderedMarkup) => {
-    expect(MockApi.getA.withArgs('1').callCount).toBe(2) // called on 1st and 2nd renders
-    expect(MockApi.getB.withArgs('3').callCount).toBe(1) // called only on 2nd render
-    expect(MockApi.getC.withArgs('2').callCount).toBe(1)
-    expect(MockApi.getC.withArgs('4').callCount).toBe(1)
+      // Frontload will not run on the first render on the client by default,
+      // because it is assumed server rendering is being used
+      //
+      // Frontload only runs from the first update onwards, when props have changed and data may need to
+      // be reloaded (of course, whether or not this is the case is entirely up to the frontload fn implementation(s))
+      //
+      // So, do a first render just to get it done!
+      const firstRender = mount(<App />)
 
-    assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
-    assertStoreIsPopulated(store)
-    assertDataFromStoreIsRenderedOnServer(serverRenderedMarkup)
+      expect(firstRender.find(Component1)).toHaveLength(1)
+      expect(firstRender.find(Component2)).toHaveLength(0)
+      expect(firstRender.find(Component3)).toHaveLength(0)
+      expect(firstRender.find(Parent)).toHaveLength(1)
+      expect(firstRender.find(Leaf)).toHaveLength(1)
+
+      expect(firstRender.find('div.loading-data').at(0).text()).toBe('data loading from frontload function')
+      expect(firstRender.find(Leaf).at(0).text()).toBe('loading...')
+
+      assertStoreIsEmpty(store)
+
+      // Now, force a first update to get frontload to run
+      const secondRender = firstRender.update()
+
+      expect(secondRender.find(Component1)).toHaveLength(1)
+      expect(secondRender.find(Component2)).toHaveLength(0)
+      expect(secondRender.find(Component3)).toHaveLength(0)
+      expect(secondRender.find(Parent)).toHaveLength(1)
+      expect(secondRender.find(Leaf)).toHaveLength(1)
+
+      expect(firstRender.find('div.loading-data').at(0).text()).toBe('data loading from frontload function')
+      expect(secondRender.find(Leaf).at(0).text()).toBe('loading...')
+
+      // Wait until all mock api calls have completed, then force another update to render
+      // with the content now loaded into the store from the mock api and start the nested frontload
+      // components rendering
+      return Promise.all([ ...MOCK_API_PROMISES ]).then(() => {
+        const thirdRender = secondRender.update()
+
+        expect(thirdRender.find(Component1)).toHaveLength(1)
+        expect(thirdRender.find(Component2)).toHaveLength(1)
+        expect(thirdRender.find(Component3)).toHaveLength(2)
+        expect(thirdRender.find(Parent)).toHaveLength(2)
+        expect(thirdRender.find(Leaf)).toHaveLength(4)
+
+        expect(thirdRender.find(Leaf).at(0).text()).toBe('a 1')
+        expect(thirdRender.find(Leaf).at(1).text()).toBe('loading...')
+        expect(thirdRender.find(Leaf).at(2).text()).toBe('loading...')
+        expect(thirdRender.find(Leaf).at(3).text()).toBe('loading...')
+
+        expect(store.a['1']).toEqual({ id: '1', data: 'a 1' })
+        expect(store.b['3']).toBeUndefined()
+        expect(store.c['2']).toBeUndefined()
+        expect(store.c['4']).toBeUndefined()
+
+        // wait until the now rendering frontloads' mock api calls have completed, then force another update to render
+        // with the content now loaded into the store from the mock api
+        return Promise.all([ ...MOCK_API_PROMISES ]).then(() => thirdRender)
+      }).then((thirdRender) => {
+        const fourthRender = thirdRender.update()
+
+        assertDomStructureIsAsExpected(fourthRender)
+        assertStoreIsPopulated(store)
+        assertDataFromStoreIsRendered(fourthRender)
+      })
+    })
   })
 
-  // reset the mock api call counters and reset the store
-  sinonSandbox.reset()
-  store = buildCleanStore()
+  describe('server render', () => {
+    test('with nested frontload components', async () => {
+      let store = buildCleanStore()
 
-  await frontloadServerRender(() => (
-    render(<App />)
-  ), {
-    maxNestedFrontloadComponents: 3 // one more level of nesting than required
-  }).then((serverRenderedMarkup) => {
-    expect(MockApi.getA.withArgs('1').callCount).toBe(2) // called on 1st and 2nd renders
-    expect(MockApi.getB.withArgs('3').callCount).toBe(1) // called only on 2nd render
-    expect(MockApi.getC.withArgs('2').callCount).toBe(1)
-    expect(MockApi.getC.withArgs('4').callCount).toBe(1)
+      const App = () => (
+        <Frontload isServer >
+          {/*  onlyRenderChildrenWhenDataLoaded prop means that children only load once Component1's frontload has resolved with data */}
+          <Component1 entityId='1' store={store} onlyRenderChildrenWhenDataLoaded >
+            <Component3 entityId='2' store={store} />
+            <Component2 entityId='3' store={store} >
+              <Component3 entityId='4' store={store} />
+            </Component2>
+          </Component1>
+        </Frontload>
+      )
 
-    assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
-    assertStoreIsPopulated(store)
-    assertDataFromStoreIsRenderedOnServer(serverRenderedMarkup)
-  })
+      await frontloadServerRender(() => (
+        render(<App />)
+      ), {
+        maxNestedFrontloadComponents: 2 // the exact level of nesting required, no more
+      }).then((serverRenderedMarkup) => {
+        expect(MockApi.getA.withArgs('1').callCount).toBe(2) // called on 1st and 2nd renders
+        expect(MockApi.getB.withArgs('3').callCount).toBe(1) // called only on 2nd render
+        expect(MockApi.getC.withArgs('2').callCount).toBe(1)
+        expect(MockApi.getC.withArgs('4').callCount).toBe(1)
 
-  // reset the mock api call counters and reset the store
-  sinonSandbox.reset()
-  store = buildCleanStore()
+        assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
+        assertStoreIsPopulated(store)
+        assertDataFromStoreIsRenderedOnServer(serverRenderedMarkup)
+      })
 
-  await frontloadServerRender(() => (
-    render(<App />)
-  ), {
-    maxNestedFrontloadComponents: 100000000 // many more levels of nesting than required, almost unlimited
-  }).then((serverRenderedMarkup) => {
-    expect(MockApi.getA.withArgs('1').callCount).toBe(2) // called on 1st and 2nd renders
-    expect(MockApi.getB.withArgs('3').callCount).toBe(1) // called only on 2nd render
-    expect(MockApi.getC.withArgs('2').callCount).toBe(1)
-    expect(MockApi.getC.withArgs('4').callCount).toBe(1)
+      // reset the mock api call counters and reset the store
+      sinonSandbox.reset()
+      store = buildCleanStore()
 
-    assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
-    assertStoreIsPopulated(store)
-    assertDataFromStoreIsRenderedOnServer(serverRenderedMarkup)
+      await frontloadServerRender(() => (
+        render(<App />)
+      ), {
+        maxNestedFrontloadComponents: 3 // one more level of nesting than required
+      }).then((serverRenderedMarkup) => {
+        expect(MockApi.getA.withArgs('1').callCount).toBe(2) // called on 1st and 2nd renders
+        expect(MockApi.getB.withArgs('3').callCount).toBe(1) // called only on 2nd render
+        expect(MockApi.getC.withArgs('2').callCount).toBe(1)
+        expect(MockApi.getC.withArgs('4').callCount).toBe(1)
+
+        assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
+        assertStoreIsPopulated(store)
+        assertDataFromStoreIsRenderedOnServer(serverRenderedMarkup)
+      })
+
+      // reset the mock api call counters and reset the store
+      sinonSandbox.reset()
+      store = buildCleanStore()
+
+      await frontloadServerRender(() => (
+        render(<App />)
+      ), {
+        maxNestedFrontloadComponents: 100000000 // many more levels of nesting than required, almost unlimited
+      }).then((serverRenderedMarkup) => {
+        expect(MockApi.getA.withArgs('1').callCount).toBe(2) // called on 1st and 2nd renders
+        expect(MockApi.getB.withArgs('3').callCount).toBe(1) // called only on 2nd render
+        expect(MockApi.getC.withArgs('2').callCount).toBe(1)
+        expect(MockApi.getC.withArgs('4').callCount).toBe(1)
+
+        assertServerRenderedMarkupStructureIsAsExpected(serverRenderedMarkup)
+        assertStoreIsPopulated(store)
+        assertDataFromStoreIsRenderedOnServer(serverRenderedMarkup)
+      })
+
+      // reset the mock api call counters and reset the store
+      sinonSandbox.reset()
+      store = buildCleanStore()
+
+      // this tests what happens when the max levels of nesting is less than
+      // the actual levels of nesting in the rendered view
+      //
+      // the expected behaviour is that he view is server rendered with the
+      // extra level of nested components still showing their loading state
+      // since their frontload functions have not run
+      await frontloadServerRender(() => (
+        render(<App />)
+      ), {
+        maxNestedFrontloadComponents: 1 // one fewer level of nesting than required (there are 2 nested levels of frontload components in <App />)
+      }).then((serverRenderedMarkup) => {
+        expect(MockApi.getA.withArgs('1').callCount).toBe(1) // called on 1st and only render
+        expect(MockApi.getB.withArgs('3').callCount).toBe(0) // not called because these are called in the frontload function of the nested components
+        expect(MockApi.getC.withArgs('2').callCount).toBe(0)
+        expect(MockApi.getC.withArgs('4').callCount).toBe(0)
+
+        expect(store.a['1']).toEqual({ id: '1', data: 'a 1' }) // only the data loaded in the first level of nesting should be present in the store
+        expect(store.b['3']).toBeUndefined() // this data would have been loaded in the second level of nesting but is not, so is undefined
+        expect(store.c['2']).toBeUndefined()
+        expect(store.c['4']).toBeUndefined()
+
+        expect(serverRenderedMarkup.find('div.parent')).toHaveLength(2)
+        expect(serverRenderedMarkup.find('div.leaf')).toHaveLength(4)
+        expect(serverRenderedMarkup.find('div.leaf').eq(0).text()).toBe('a 1') // first level of nesting, data loaded and server rendered
+        expect(serverRenderedMarkup.find('div.leaf').eq(1).text()).toBe('loading...') // second level of nesting, data not loaded so still in loading state
+        expect(serverRenderedMarkup.find('div.leaf').eq(2).text()).toBe('loading...')
+        expect(serverRenderedMarkup.find('div.leaf').eq(3).text()).toBe('loading...')
+      })
+    })
   })
 })
