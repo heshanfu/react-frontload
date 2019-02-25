@@ -4,15 +4,11 @@
 
 #### Load data asynchronously into your React components. Works on both client and server render.
 
----
-
-Here is the [example application](/docs/react-frontload-example-application.md) using **react-frontload** to load data
-
-
 Client render                   | Server render
 :------------------------------:|:-----------------------------:
 ![](/docs/no-server-render.gif) |![](/docs/server-render.gif)
 
+The [example application](/docs/react-frontload-example-application.md)
 ---
 
 * [Quick code example](#quick-code-example)
@@ -23,22 +19,14 @@ Client render                   | Server render
 ```jsx
 import { frontloadConnect } from 'react-frontload'
 
-// async data loading inside frontload function
-const frontload = async (props) => {
-  const data = await yourAPI.loadData() // takes 2 seconds
-  yourStateManager.updateState(data) // e.g. redux dispatch
-}
-
-// the raw component, which renders a data prop containing the async loaded data
-const Presentation = (props) => (
-  <div>{props.data ? `Loaded: ${props.data}` : 'Loading...'}</div>
-)
-
 const YourComponent =
   yourStateManager.connectDataPropFromState( // e.g. redux connect
-  frontloadConnect(frontload)( // frontload function bound to component here
-    Presentation
-  ))
+    frontloadConnect(async (props) => {
+      const data = await yourAPI.loadData() // takes 2 seconds
+      yourStateManager.updateState(data) // e.g. redux dispatch
+    })(props => (
+      <div>{props.data ? `Loaded: ${props.data}` : 'Loading...'}</div>
+    ))
 ```
 
 ##### What happens on client render?
@@ -103,18 +91,22 @@ The design philosophy of the library is that it is both 'Just React' and 'Just J
 ```js
 frontloadConnect(
   frontload: (props: Object) => Promise<void>, // frontload function
-  options?: { noServerRender: boolean, onMount: boolean, onUpdate: boolean} // frontload options
+  options?: { // frontload options
+    noServerRender: boolean [default false],
+    onMount: boolean [default true],
+    onUpdate: boolean [default true]
+  }
 )(Component: React$Component)
 ```
 
-This is the HOC which connects react-frontload and the Component you want to load data into.
+This is the Higher Order Component which connects react-frontload and the Component you want to load data into.
 
 *Arguments*
 
 * `frontload: (props: Object) => Promise<void>` The function which loads your Component's data. Takes any props you pass to the component, and returns a Promise which **must** resolve when all required data-loading is complete.
 
 
-* `options?: { noServerRender: boolean, onMount: boolean, onUpdate: boolean}` The options configure when the frontload function should fire on both client and server.
+* `options:` The options configure when the frontload function should fire on both client and server.
 
   * `noServerRender: boolean [default false]` Toggles whether or not the Component’s frontload function will run on server render.
 
@@ -142,7 +134,12 @@ The react-frontload provider Component - it must be an ancestor of **all** compo
 #### frontloadServerRender
 
 ```js
-frontloadServerRender: (renderMarkup: (dryRun?: boolean) => string)
+frontloadServerRender: (
+  renderMarkup: (dryRun?: boolean) => string,
+  options?: {
+    maxNestedFrontloadComponents: number [default 1]
+  }
+)
 ```
 
 The `react-frontload` server render wrapper which **must** be used on the server to enable the synchronous data loading on server render that `react-frontload` provides. This is of course not needed if you are not using server rendering in your application.
@@ -151,6 +148,8 @@ The `react-frontload` server render wrapper which **must** be used on the server
 
   * `renderMarkup: (dryRun?: boolean) => string` A function which performs the ordinary React server rendering logic, returning the server rendered markup. In the majority of cases, this will just be a wrapper for a `ReactDom.renderToString` call.
     * `dryRun?: boolean` Used for low-level integration with `react-frontload` server render. Under the hood, `frontloadServerRender` is actually running the `renderMarkup` function twice. It runs the first time to run the `frontload` functions for all components included in the render, then a second time to render the final markup once all data has been loaded into state. As React renders are supposed to pure this usually does not create any issues, but in some applications server renders also include logic, typically from styling libraries etc, that must only be called once per render. This boolean is therefore passed to let your `renderMarkup` function know which type of server render is occuring, so that you can decide to only call such logic once on the second and final server render, for instance.
+  * options:
+    * `maxNestedFrontloadComponents: number [default 1]` The maximum levels of 'nested' frontload components that will render on the server. The term 'nested' here has a very specific meaning: it's a frontload component that is rendered as a child of another frontload component, conditionally, based on data loaded by the parent. Nested frontload components present a particular challenge with server rendering because each level must load in serial, and cannot load in parallel. On the client, this is less relevant because the successive levels render incrementally, but on the server we have to wait for *all* levels to render before returning anything. If there are many levels of nesting, this may result in long render times and poor UX. Where possible, nesting should be avoided and by default react-frontload only allows 1 level of nesting. This option allows you to increase that to accomodate nesting of frontload components in your app if this is unavoidable. Note that if your app contains more levels of nested frontload components than this limit allows, the server render will still work, but the rendered markup will simply show any levels beyond the max in their loading state, and these 'loading' components' frontload functions will *not* automatically fire on the client unless `noServerRender` is set `true` for those components (see `noServerRender` docs for more information), therefore the server render will produce something but will likely appear slightly broken to the user. This is by design, so that you can spot where your application breaks the configured limit, whilst not completely breaking server render. If this happens it may simply be a bug, or you may have to change your design to have fewer levels of nesting, or of course you may just up the limit.
 
 You can think of this function as injecting the logic required to make `react-frontload` synchronous data loading work, into your existing application. This is in line with the design goals of the library, i.e. there are no requirements about how your server render function works, and indeed it can work in a completely standard way. As long as it is wrapped with `frontloadServerRender`, it will just work.
 
