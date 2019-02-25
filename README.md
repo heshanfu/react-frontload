@@ -9,6 +9,7 @@ Client render                   | Server render
 ![](/docs/no-server-render.gif) |![](/docs/server-render.gif)
 
 The [example application](/docs/react-frontload-example-application.md)
+
 ---
 
 * [Quick code example](#quick-code-example)
